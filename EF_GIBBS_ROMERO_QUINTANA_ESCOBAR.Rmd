@@ -1,0 +1,366 @@
+---
+title: "Informe Final DS"
+author: "Grupo DS"
+date: "`r Sys.Date()`"
+output: html_document
+
+# Libraries
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# ANÁLISIS DEL PRECIO DEL HUEVO EN ESTADOS UNIDOS DE 2018 A 2022
+
+*"'Are the Chickens On Strike?': Consumers Furious As Egg Prices Skyrocket Over 64% In One Month In Some U.S. States" - Entrepreneur, 2023*
+
+Noticias como la anterior llenaron los medios de Estados Unidos y del mundo el año pasado. A pesar de ser un producto que muchos dan por sentado en su dieta diaria, el huevo, en Estados Unidos específicamente, se convirtió de la noche a la mañana en un producto de consumo de lujo.
+
+**El objetivo del siguiente estudio será realizar una primera evaluación respecto a cómo y por qué el precio del huevo aumentó en Estados Unidos**. Para ello, la fuente de los datos a utilizar será la *Federal Reserve Economic Data* (FRED), donde se evaluarán tres principales indicadores que intervienen en el precio de este producto alimenticio: Transporte (A través del precio del Diesel), Electricidad (debido a los costos de energía en los que incurre una granja) y costos de alimentación de las gallinas (a través del precio internacional del maíz). Con ello, **el total de variables serían 4 incluyendo el precio del huevo**, y la **cantidad de observaciones será de 60**, siendo datos mensuales de enero 2018 a diciembre 2022.
+
+## Contexto del estudio:
+
+De forma resumida, la data contiene lo siguiente, incluyendo los conceptos pertinentes y explicación respectiva de los indicadores:
+
+#### **Fuente:**
+
+Banco de la Reserva Federal de Saint Louis, Estados Unidos. (St. Louis FED).
+
+#### **Conceptos pertinentes:**
+
+-   **Inflación:** Hace referencia al aumento de los precios de bienes y servicios en un período de tiempo, o lo que es lo mismo, la disminución del valor del dinero con respecto a la cantidad de bienes y servicios a comprar con él.
+
+-   **Huevo:** El huevo es un alimento considerado como derivado de las aves de corral, éste se conjuga como uno de los alimentos más rico en nutrientes proveniente de un animal; está protegido por una cáscara de colágeno natural y es un alimento versátil que puede ser utilizado para cocinar comidas tanto dulces como saladas.
+
+-   **Diésel:** Hidrocarburo líquido compuesto por parafinas, creado en base a diversos procesos. Es conocido por ser utilizado como combustible para motores diésel y calefacción. La mayoría de vehículos de tipo comercial así como los utilizados en maquinarias para la producción agrícola, funcionan con este tipo de combustible.
+
+-   **Maíz:** Es uno de los cereales más importantes del mundo, suministra elementos nutritivos a seres humanos, a los animales y es una materia prima básica de la industria.
+
+-   **Electricidad:** es la forma de energía que resulta de la existencia de una diferencia de potencial entre dos puntos, lo que permite establecer una corriente eléctrica entre ambos cuando se los pone en contacto por medio de un conductor eléctrico. La energía eléctrica puede transformarse en muchas otras formas de energía, tales como la energía lumínica o luz, la energía mecánica y la energía térmica.
+
+#### **Definiciones de indicadores:**
+
+-   **Precio Promedio del pollo:** El pollo es un coproducto agrícola del huevo, pues vienen del mismo animal. El pollo también es ampliamente consumido como una alta fuente de proteína, tanto en Estados Unidos como en el mundo.
+
+-   **Precio del Huevo por docena:** Es un índice que recopila los precios al igual que el anterior, pero en este caso de un solo producto, el huevo, el cual es contabilizado por docena en la data extraída de la FRED.
+
+-   **Precio promedio USA del Diésel mensual:** precio promedio de dicho combustible con periodicidad mensual en los Estados Unidos, medido en Dólares Americanos (USD) por galón.
+
+-   **Precio promedio mundial del maíz mensual:** precio promedio de dicho cereal con periodicidad mensual a nivel mundial, medido en Dólares Americanos (USD) por tonelada métrica.
+
+-   **Precio promedio del Kilovatio-Hora en los Estados Unidos:** el kilovatio hora se usa comúnmente como una unidad de facturación para la energía entregada a los consumidores por las compañías eléctricas. Dicho indicador es de periodicidad mensual, medido en Dólares Americanos (USD) por kWh.
+
+#### **Cantidad de observaciones:**
+
+60 observaciones.
+
+#### **Cantidad de variables:**
+
+5 variables.
+
+#### **Valores faltantes:**
+
+No aplica, no hay valores faltantes en la data extraída.
+
+## PASO A PASO DEL ANÁLISIS:
+
+En un comienzo, se importó la data a través de la cual se observaron los datos.
+
+Cabe destacar que los datos venían en distintos archivos de la FRED, pero como tenían el mismo formato, se pegaron las columnas en un mismo archivo Excel para luego ser limpiado y procesado.
+
+```{r}
+
+#Librerias usadas:
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+library(dslabs)
+library(ggthemes)
+library(lubridate)
+library(knitr)
+
+#importando la data
+data <- read_excel("D:/Usuario/Slade/OneDrive/Escritorio/CARLOS/Universidad/Semestres/Semestre 8/Electiva Introduccion a la Ciencia de Datos/Entrega Final/DATA/Copia de data_frame.xlsx")
+
+#ordenando la data
+
+#Eliminando todos los NA
+data <- data %>% 
+  filter(!is.na(...3)) %>% 
+  .[-1,] %>% 
+  select(-1)
+
+#Cambiando la columna de año por un repetido del año por cada mes 
+#(12 veces 2018, 12 veces 2019...)
+data$ano <- rep(c(2018:2022), each = 12)
+
+#Se reajusta la columna de año
+data <- data %>% 
+  relocate(ano) 
+
+
+#se ajustan los nombres para mejor comprensión
+names(data) <- c("ano", "mes", "huevo12", "diesel", "maiz", "electricidad")
+
+# cambiando las clases de los datos 
+data$ano <- as.numeric(data$ano)
+data$huevo12 <- as.numeric(data$huevo12)
+data$diesel <- as.numeric(data$diesel)
+data$maiz <- as.numeric(data$maiz)
+data$electricidad <- as.numeric(data$electricidad)
+
+
+#redondeando 
+data <- data %>% 
+  mutate_if(is.numeric,
+            round,
+            digits = 3)
+
+
+#uniendo ano y mes
+data <- data %>%
+  mutate(fecha = seq(as.Date("2018-01-01"), as.Date("2022-12-01"), by = "month"))
+
+data<- data %>% 
+  relocate(fecha)
+
+head(data)
+```
+
+## Análisis Gráfico de los Datos:
+
+Una vez limpiada la base de datos, se procedió a analizar la misma de forma gráfica.
+
+### *Gráfico 1. G**ráfica lineal del precio del huevo por docena en el período mensual 2018-2022***
+
+```{r}
+# GRAFICO 1. PRECIO DEL HUEVO 2018-2022
+
+data %>% 
+  ggplot(aes(x = fecha, y = huevo12))+
+  geom_line(color = "red", size = 1.5)+
+  ggtitle("Precio docena de huevos 2018-2022")+
+  xlab("Meses")+
+  ylab("Precio Huevos x docena")+
+  theme_classic()+
+  theme(plot.title = element_text(color = "black", size = 17, face = "bold", hjust = 0.5),
+        axis.title = element_text(color = "black", size = 16),
+        axis.text = element_text(color = "black", size = 14))
+```
+
+Se puede observar un pico en el precio de la docena de huevos en 2020 debido a la pandemia. Tras acabar la subida general de precios producto de la misma en los Estados Unidos, el precio volvió a estabilizarse, para luego volver a tener un aumento lento de precio durante 2021. **Para el año 2022, se puede observar un cambio drástico en el comportamiento del precio**, el cuál será el objetivo de este estudio intentar determinar los factores que intervinieron en ello.
+
+Para poder dar explicación al Gráfico 1, se utilizarán los datos de los tres factores principales que deberían influir en el precio del huevo. Los factores, provenientes directamente de los costos, son: la comida de las gallinas (precios del maíz), el transporte con el que se llevan a los sitios de acopio (precio del Diesel) y la energía para mantener la granja andando y con las gallinas a la temperatura debida (precio de la electricidad).
+
+### **Gráfico 2. Costos de la granja vs precio de la docena de huevos.**
+
+```{r}
+# GRAFICO 2. PRECIO DEL HUEVO + FACTORES QUE AFECTAN EL COSTO DEL MISMO
+
+data2 <- data %>% 
+  mutate(maiz_kg = 10*data$maiz/1000, electricidad_10kw = 10*data$electricidad)
+
+data2 %>%
+  ggplot(aes(x = fecha)) +
+  geom_line(aes(y = huevo12, color = "Huevos"), size = 1.5) +
+  geom_line(aes(y = diesel, color = "Diesel"), size = 1) +
+  geom_line(aes(y = maiz_kg, color = "maiz_kg"), size = 1) +
+  geom_line(aes(y = electricidad_10kw, color = "electricidad_10kw"), size = 1) + 
+  labs(title = "Costos de producción del huevo vs precio del huevo 2018-22",
+       x = "Años",
+       y = "Precios $",
+       color = "Variables") +
+  scale_color_manual(values = c("green", "blue", "red", "purple")) +
+  theme_economist_white()+
+  theme(plot.title = element_text(color = "black", size = 15, face = "bold", hjust = 0.5),
+        axis.title = element_text(color = "black", size = 12),
+        axis.text = element_text(color = "black", size = 10))
+```
+
+Es evidente y observable que el precio del huevo tuvo un comportamiento al alza junto a las demás variables a partir de 2022. Antes de ello, el precio del Diesel tuvo una baja imoprtante en 2020, fácilmente explicable con la baja de precios debido al paro económico producto de la pandemia. Sin embargo, el maíz también tiene un comportamiento que pareciera contrario en 2019 y 2020 respecto al huevo. La electricidad, por otro lado, se mantuvo bastante estable, teniendo una ligera alza en 2022.
+
+A primera vista, el gráfico 2 podría reflejar incosistencias en las variables como factores explicativos, pero de igual forma se validarán estadísticamente vía una regresión lineal.
+
+##### Nota: Se modificaron las escalas de maíz (a Kg) y electricidad (por 10kw en vez de 1kw) para poder reflejarlos mejor en la escala del gráfico.
+
+Finalmente, el precio del huevo debería estar estrechamente correlacionado al del pollo, pues, tal como se conoce en agricultura, son coproductos, lo que implica que los mismos se conectan entre sí durante su producción (ambos vienen del mismo animal).
+
+Con ello, se esperaría que el precio del pollo se comportara muy parecido al precio del huevo, pero tal como se observa en el siguiente gráfico, no es lo que sucede:
+
+### **Gráfico 3. Precio del pollo por kg vs Precio del huevo por docena**
+
+```{r}
+pollo <- read_excel("D:/Usuario/Slade/OneDrive/Escritorio/CARLOS/Universidad/Semestres/Semestre 8/Electiva Introduccion a la Ciencia de Datos/Entrega Final/DATA/pollo.xls")
+
+names(pollo) <- c("fecha", "pollo")
+
+class(pollo$fecha)
+class(data2$fecha)
+
+pollo$fecha <- as.Date(pollo$fecha)
+
+
+
+DF_completo <- merge(data2, pollo, by = "fecha", all.x = TRUE)
+
+
+
+
+DF_completo %>%
+  ggplot(aes(x = fecha)) +
+  geom_line(aes(y = huevo12, color = "Huevos"), size = 1.5) +
+  geom_line(aes(y = pollo, color = "Pollo"), size = 1) +
+  labs(title = "Precio Huevos, Pollo (USA) 2018-2023",
+       x = "Años",
+       y = "Precios $",
+       color = "Variable") +
+  scale_color_manual(values = c("Huevos" = "red", "Pollo" = "blue")) +  
+  theme_classic() + 
+  theme(plot.title = element_text(color = "black", size = 17, face = "bold", hjust = 0.5),
+        axis.title = element_text(color = "black", size = 16),
+        axis.text = element_text(color = "black", size = 14))
+```
+
+El precio del pollo se comporta con mucha menos alza que el huevo, teniendo incluso descensos cuando el huevo tiene ascensos en su precio. Esta explicación podría verse reflejada en los miedos de inflación que han surgido en la era de Estados Unidos Post-Pandemia. La inflación inesperada causa miedo en los consumidores, y los lleva a cambiar su forma de consumir; en este caso, la inflación hizo que los consumidores redujeran su gasto, buscando ahorrar, y dado que los inventarios **específicamente del pollo**, estaban en aumento, la contracción en la demanda fue un impacto importante en el mismo a pesar de la inflación. En otras palabras: "El precio de los huevos está alto pero el pollo es más barato. La gripe aviar culpó a la primera, a los consumidores asustados por la inflación a la segunda." (Demetrakakes, 2022, párr. 1).
+
+Si bien son coproductos, el pollo no necesariamente debe matarse para producir los huevos, por lo que puede existir diferenciación en sus comportamientos de precio.
+
+Ahora, la revisión estadística nos debería permitir comprender mejor el comportamiento en el precio del huevo:
+
+## Análisis Estadístico de los Datos:
+
+Se realizó en primer lugar una regresión con las variables en sus valores absolutos:
+
+### **Regresión 1. Regresión con las variables en sus valores normales.**
+
+```{r}
+# REGRESION LINEAL
+
+
+variables_explicativas <- c("diesel", "maiz", "electricidad")
+
+datos_regresion2 <- DF_completo[, c(variables_explicativas, "huevo12")]
+
+#  modelo de regresion lineal
+modelo_def2 <- lm(huevo12 ~ diesel + maiz + electricidad, data = datos_regresion2)
+
+# resumen del modelo
+summary(modelo_def2)
+```
+
+Se puede observar a través de los P-Value (Escritos en R como "Pr(\>\|t\|)") que, tal como se sospechaba superficialmente con las gráficas, tanto el diesel como el maíz no logran ser factores que expliquen bien el precio del huevo, pues la regla de que el P-value sea menor a 0.05 no se cumple con los mismos. La electricidad es la única que logra mantenerse estadísticamente significativa.
+
+De igual forma, se procederá a hacer 2 regresiones más, la primera con la primera diferencia de las variables, y la segunda con la segunda diferencia, para comprobar si hay algún cambio positivo respecto a la significancia estadística:
+
+### **Regresión 2. Regresión con las variables en sus valores en primera diferencia.**
+
+```{r}
+# SEGUNDA OPCION REGRESION
+
+DF_completo$dhuevo12 <- c(0, diff(DF_completo$huevo12))
+DF_completo$ddiesel <- c(0, diff(DF_completo$diesel))
+DF_completo$dmaiz <- c(0, diff(DF_completo$maiz))
+DF_completo$delectricidad <- c(0, diff(DF_completo$electricidad))
+
+variables_explicativas <- c("ddiesel", "dmaiz", "delectricidad")
+
+datos_regresion3 <- DF_completo[, c(variables_explicativas, "dhuevo12")]
+
+#  modelo de regresion lineal
+modelo_def3 <- lm(dhuevo12 ~ ddiesel + dmaiz + delectricidad, data = datos_regresion3)
+
+# resumen del modelo
+summary(modelo_def3)
+```
+
+Tras generar en cada variable su primera diferencia, incluso la electricidad y el intercepto quedan por fuera de la significancia estadística según sus P-Valores.
+
+### **Regresión 3. Regresión con las variables en sus valores en segunda diferencia.**
+
+```{r}
+# TERCERA OPCION REGRESION
+
+DF_completo$ddhuevo12 <- c(0,0, diff(diff(DF_completo$huevo12)))
+DF_completo$dddiesel <- c(0,0, diff(diff(DF_completo$diesel)))
+DF_completo$ddmaiz <- c(0,0, diff(diff(DF_completo$maiz)))
+DF_completo$ddelectricidad <- c(0,0, diff(diff(DF_completo$electricidad)))
+
+variables_explicativas <- c("dddiesel", "ddmaiz", "ddelectricidad")
+
+datos_regresion4 <- DF_completo[, c(variables_explicativas, "ddhuevo12")]
+
+#  modelo de regresion lineal
+modelo_def4 <- lm(ddhuevo12 ~ dddiesel + ddmaiz + ddelectricidad, data = datos_regresion4)
+
+# resumen del modelo
+summary(modelo_def4)
+```
+
+Se puede observar del mismo modo que no existe significancia estadística en ninguna de las variables ni en el intercepto.
+
+Se procederá, de igual forma, a hacer un breve análisis gráfico de la regresión 1 con respecto a cada una de las supuestas variables explicativas.
+
+## Análisis Gráfico de la Regresión:
+
+### **Gráfico 1. Regresión respecto al precio del huevo vs Diesel**
+
+```{r}
+# GRAFICA DIESEL
+ggplot(datos_regresion2, aes(x = diesel, y = huevo12)) +
+  geom_point() +                    
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +   
+  labs(title = "Regresion Lineal Diesel",
+       x = "Precio Promedio Diesel",
+       y = "Precio Promedio Huevos")
+```
+
+### **Gráfico 2. Regresión respecto al precio del huevo vs X**
+
+```{r}
+ggplot(datos_regresion2, aes(x = maiz, y = huevo12)) +
+  geom_point() +                    
+  geom_smooth(method = "lm", se = FALSE, color = "red") +   
+  labs(title = "Regresion Lineal Maiz",
+       x = "Precio Promedio Maiz",
+       y = "Precio Promedio Huevos")
+```
+
+### **Gráfico 3. Regresión respecto al precio del huevo vs X**
+
+```{r}
+ggplot(datos_regresion2, aes(x = electricidad, y = huevo12)) +
+  geom_point() +                    
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +   
+  labs(title = "Regresion Lineal Electricidad",
+       x = "Precio Promedio Electricidad/Kw",
+       y = "Precio Promedio Huevos")
+```
+
+Como se puede observar, a pesar de que parecieran tener una tendencia, los valores son muy dispersos para poder ser explicados debidamente por la regresión.
+
+## 
+
+## Conclusión:
+
+En conclusión, los elevados precios del huevo no están asociados directamente a las variables de costos seleccionados. Rello (2023) en Entrepeneur, menciona que en noviembre 2022 hubo un número sumamente alto de aves contagiadas con gripe aviar, generado una importante reducción de la oferta de bienes asociados a la cría de aves (producción de huevos y pollo) y por lo tanto aumentos significativos en precio. Al realizar el modelo de regresión lineal, solo el precio de la electricidad resultó ser una variable significativa en el modelo propuesto. Luego, se aplicaron las primeras diferencias al modelo con tal de añadir estacionariedad en las variables, pero las mismas no resultaron signifcativas. Por lo tanto se concluye que la gripe aviar, acerca de la cual no se encontró data, podría ser una varaible mucho más explicativa del comportamineto del precio del huevo, sobre todo para el último año donde se intensificó la misma (2022).
+
+## Referencias:
+
+Demetrakakes, P (2022). *Egg Prices Up but Chicken is Cheaper.* Foodprocessing: <https://www.foodprocessing.com/ingredients/animal-proteins/news/21438800/egg-prices-up-but-chicken-is-cheaper>
+
+Rella, E (2023). *' Are the Chickens On Strike?': Consumers Furious As Egg Prices Skyrocket Over 64% In One Month In Some U.S. States.* Entrepeneur: <https://www.entrepreneur.com/business-news/why-did-egg-prices-increase-data-shows-skyrocketing-egg/442828>
+
+## Fuentes de Datos públicas utilizadas en el presente trabajo:
+
+-   Precio de Electricidad en USA: <https://fred.stlouisfed.org/series/APU000072610>
+
+-   Precio del Maíz: <https://fred.stlouisfed.org/series/PMAIZMTUSDM>
+
+-   Precio del Huevo por Docena: <https://fred.stlouisfed.org/series/APU0000708111>
+
+-   Precio del Diesel: <https://fred.stlouisfed.org/series/GASDESW>.
+
+-   Precio del Pollo: <https://fred.stlouisfed.org/series/APU0000706111>
+
+##### Autores: Carlos Gibbs, Juan Quintana, Juan Romero, Daniel Escobar
